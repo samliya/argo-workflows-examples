@@ -1,0 +1,48 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: my-artifact-workflow
+  namespace: argo
+spec:
+  # 配置artifact的configmap
+  artifactRepositoryRef:
+    configMap: 2-workflow-controller-configmap
+    key: artifactRepository
+  entrypoint: main
+  templates:
+  - name: main
+    steps:
+    - - name: generate-data
+        template: generate-data
+    - - name: process-data
+        template: process-data
+        arguments:
+          artifacts:
+          - name: input-data
+            from: "{{steps.generate-data.outputs.artifacts.data}}"
+  
+  # 生成数据
+  - name: generate-data
+    container:
+      image: alpine:3.8
+      command: [sh, -c]
+      args: ["echo 'This is some test data' > /tmp/data.txt"]
+    outputs:
+      artifacts:
+      - name: data
+        path: /tmp/data.txt
+  
+  # 处理数据
+  - name: process-data
+    inputs:
+      artifacts:
+      - name: input-data
+        path: /tmp/input.txt
+    container:
+      image: alpine:3.8
+      command: [sh, -c]
+      args: ["cat /tmp/input.txt && echo 'Processing complete' > /tmp/result.txt"]
+    outputs:
+      artifacts:
+      - name: result
+        path: /tmp/result.txt

@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: pvc-only-example
+  namespace: argo
+spec:
+  entrypoint: main
+  volumeClaimTemplates:
+  - metadata:
+      name: workdir
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: standard
+      resources:
+        requests:
+          storage: 1Gi
+
+  templates:
+  - name: main
+    steps:
+    - - name: generate-data
+        template: generate-data
+    - - name: process-data
+        template: process-data
+
+  # 生成数据
+  - name: generate-data
+    container:
+      image: alpine:3.8
+      command: [sh, -c]
+      args: ["echo 'This is some test data' > /mnt/vol/data.txt"]
+      volumeMounts:
+      - name: workdir
+        mountPath: /mnt/vol
+
+  # 处理数据
+  - name: process-data
+    container:
+      image: alpine:3.8
+      command: [sh, -c]
+      args: ["cat /mnt/vol/data.txt && echo 'Processing complete' > /mnt/vol/result.txt"]
+      volumeMounts:
+      - name: workdir
+        mountPath: /mnt/vol 

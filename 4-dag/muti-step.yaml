@@ -1,0 +1,55 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: data-pipeline-
+spec:
+  entrypoint: main
+  templates:
+  - name: main
+    steps:
+    - - name: validate
+        template: whalesay
+        arguments:
+          parameters: [{name: message, value: "Validating data..."}]
+    - - name: preprocess
+        template: whalesay
+        arguments:
+          parameters: [{name: message, value: "Preprocessing data..."}]
+    - - name: parallel-process
+        template: process-parallel
+    - - name: aggregate
+        template: whalesay
+        arguments:
+          parameters: [{name: message, value: "Aggregating results..."}]
+
+  - name: process-parallel
+    steps:
+    - - name: batch1
+        template: whalesay
+        arguments:
+          parameters: [{name: message, value: "Processing batch 1"}]
+      - name: batch2
+        template: whalesay
+        arguments:
+          parameters: [{name: message, value: "Processing batch 2"}]
+      - name: batch3
+        template: whalesay
+        arguments:
+          parameters: [{name: message, value: "Processing batch 3"}]
+      - name: batch3
+        template: whalesay
+        arguments:
+          parameters: [{name: message, value: "Processing batch 3"}]
+      - name: batch4
+        template: whalesay
+        arguments:
+          parameters: [{name: message, value: "Processing batch 4"}]
+
+  - name: whalesay
+    inputs:
+      parameters:
+      - name: message
+    container:
+      image: docker/whalesay
+      command: [cowsay]
+      args: ["{{inputs.parameters.message}}"]

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cos-credentials
+  namespace: argo
+type: Opaque
+stringData:
+  accesskey: AKIDCIBrY8W*****6XkiSxGMM7k8IDu #直接存储明文
+  secretkey: VmodGfLwJ*****GeqoY5OSHtHSO5Yn #直接存储明文

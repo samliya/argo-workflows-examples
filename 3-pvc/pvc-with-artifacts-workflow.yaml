@@ -1,0 +1,57 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: pvc-with-artifacts-example
+  namespace: argo
+spec:
+  # 配置artifact的configmap
+  artifactRepositoryRef:
+    configMap: 2-workflow-controller-configmap
+    key: artifactRepository
+  entrypoint: main
+  volumeClaimTemplates:
+  - metadata:
+      name: workdir
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: standard
+      resources:
+        requests:
+          storage: 1Gi
+
+  templates:
+  - name: main
+    steps:
+    - - name: generate-data
+        template: generate-data
+    - - name: process-data
+        template: process-data
+
+  # 生成数据
+  - name: generate-data
+    container:
+      image: alpine:3.8
+      command: [sh, -c]
+      args: ["echo 'This is some test data' > /mnt/vol/data.txt"]
+      volumeMounts:
+      - name: workdir
+        mountPath: /mnt/vol
+
+  # 处理数据
+  - name: process-data
+    container:
+      image: alpine:3.8
+      command: [sh, -c]
+      args: [
+        "cat /mnt/vol/data.txt && mkdir -p /tmp/output && echo 'Processing complete' > /tmp/output/result.txt"
+      ]
+      volumeMounts:
+      - name: workdir
+        mountPath: /mnt/vol
+    #将结果保存到artifacts中
+    outputs:
+      artifacts:
+      - name: final-result
+        path: /tmp/output/result.txt
+        archive: # 设置不打包
+          none: {} 
