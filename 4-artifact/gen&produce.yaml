@@ -6,7 +6,7 @@ metadata:
 spec:
   # 配置artifact的configmap
   artifactRepositoryRef:
-    configMap: 2-workflow-controller-configmap
+    configMap: workflow-controller-configmap
     key: artifactRepository
   entrypoint: main
   templates:
@@ -24,7 +24,8 @@ spec:
   # 生成数据
   - name: generate-data
     container:
-      image: alpine:3.8
+      image: busybox
+      imagePullPolicy: IfNotPresent
       command: [sh, -c]
       args: ["echo 'This is some test data' > /tmp/data.txt"]
     outputs:
@@ -39,7 +40,8 @@ spec:
       - name: input-data
         path: /tmp/input.txt
     container:
-      image: alpine:3.8
+      image: busybox
+      imagePullPolicy: IfNotPresent
       command: [sh, -c]
       args: ["cat /tmp/input.txt && echo 'Processing complete' > /tmp/result.txt"]
     outputs:

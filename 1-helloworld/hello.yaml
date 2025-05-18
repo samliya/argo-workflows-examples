@@ -7,5 +7,6 @@ spec:
   templates:
   - name: main
     container:
-      image: alpine:latest
+      image: busybox:latest
+      imagePullPolicy: IfNotPresent
       command: [echo, "Hello, Argo!"]

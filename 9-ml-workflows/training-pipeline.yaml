@@ -1,0 +1,101 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: training-pipeline-
+spec:
+  entrypoint: training-pipeline
+  arguments:
+    parameters:
+    - name: dataset-path
+      value: "/data/mnist"
+    - name: model-config
+      value: "configs/model_config.json"
+
+  templates:
+  - name: training-pipeline
+    steps:
+    - - name: preprocess
+        template: preprocess-data
+        arguments:
+          parameters:
+          - name: dataset-path
+            value: "{{workflow.parameters.dataset-path}}"
+    
+    - - name: train
+        template: train-model
+        arguments:
+          parameters:
+          - name: model-config
+            value: "{{workflow.parameters.model-config}}"
+    
+    - - name: evaluate
+        template: evaluate-model
+        arguments:
+          parameters:
+          - name: model-path
+            value: "{{steps.train.outputs.parameters.model-path}}"
+
+  - name: preprocess-data
+    inputs:
+      parameters:
+      - name: dataset-path
+    container:
+      image: your-ml-preprocessing-image:latest
+      imagePullPolicy: IfNotPresent
+      resources:
+        limits:
+          memory: "4Gi"
+          cpu: "2"
+      command: [python]
+      args: ["/scripts/preprocess.py", "--input", "{{inputs.parameters.dataset-path}}", "--output", "/tmp/processed_data"]
+    outputs:
+      artifacts:
+      - name: processed-data
+        path: /tmp/processed_data
+
+  - name: train-model
+    inputs:
+      parameters:
+      - name: model-config
+      artifacts:
+      - name: processed-data
+        path: /tmp/processed_data
+    container:
+      image: your-ml-training-image:latest
+      imagePullPolicy: IfNotPresent
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+          memory: "8Gi"
+          cpu: "4"
+      command: [python]
+      args: ["/scripts/train.py", 
+             "--config", "{{inputs.parameters.model-config}}",
+             "--data", "/tmp/processed_data",
+             "--output", "/tmp/model"]
+    outputs:
+      parameters:
+      - name: model-path
+        value: "/tmp/model"
+      artifacts:
+      - name: model
+        path: /tmp/model
+
+  - name: evaluate-model
+    inputs:
+      parameters:
+      - name: model-path
+      artifacts:
+      - name: model
+        path: /tmp/model
+    container:
+      image: your-ml-evaluation-image:latest
+      imagePullPolicy: IfNotPresent
+      command: [python]
+      args: ["/scripts/evaluate.py", 
+             "--model", "{{inputs.parameters.model-path}}",
+             "--output", "/tmp/evaluation"]
+    outputs:
+      artifacts:
+      - name: evaluation-results
+        path: /tmp/evaluation 

@@ -5,11 +5,13 @@ metadata:
   namespace: argo
 spec:
   entrypoint: main
+  # 定义pvc
   volumeClaimTemplates:
   - metadata:
       name: workdir
     spec:
       accessModes: [ "ReadWriteOnce" ]
+      # kind默认storageclass 为standard
       storageClassName: standard
       resources:
         requests:
@@ -26,7 +28,8 @@ spec:
   # 生成数据
   - name: generate-data
     container:
-      image: alpine:3.8
+      image: busybox
+      imagePullPolicy: IfNotPresent
       command: [sh, -c]
       args: ["echo 'This is some test data' > /mnt/vol/data.txt"]
       volumeMounts:
@@ -36,7 +39,8 @@ spec:
   # 处理数据
   - name: process-data
     container:
-      image: alpine:3.8
+      image: busybox
+      imagePullPolicy: IfNotPresent
       command: [sh, -c]
       args: ["cat /mnt/vol/data.txt && echo 'Processing complete' > /mnt/vol/result.txt"]
       volumeMounts:

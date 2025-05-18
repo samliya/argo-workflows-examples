@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: parameter-helloworld-
+spec:
+  entrypoint: main
+  arguments:
+    parameters:
+    - name: message
+      value: "Hello, World!"
+  templates:
+  - name: main
+    inputs:
+      parameters:
+      - name: message
+    container:
+      image: busybox:latest
+      imagePullPolicy: IfNotPresent 
+      command: [echo, "{{inputs.parameters.message}}"]

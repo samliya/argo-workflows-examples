@@ -1,4 +1,15 @@
 apiVersion: v1
+kind: Secret
+metadata:
+  name: cos-credentials
+  namespace: argo
+type: Opaque
+stringData:
+  #这里使用腾讯云COS举例
+  accesskey: AKIDCIBrY8WigWJvW2O***kiSxGMM7k8IDu #直接存储明文
+  secretkey: VmodGfLwJTP6Zor*****Y5OSHtHSO5Yn #直接存储明文
+----
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: workflow-controller-configmap

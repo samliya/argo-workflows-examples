@@ -1,0 +1,92 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: model-training-timeout-
+spec:
+  entrypoint: train-model
+  arguments:
+    parameters:
+    - name: max-epochs
+      value: "100"
+    - name: time-limit
+      value: "5m"
+
+  templates:
+  - name: train-model
+    steps:
+    - - name: train
+        template: training-step
+        arguments:
+          parameters:
+          - name: max-epochs
+            value: "{{workflow.parameters.max-epochs}}"
+    - - name: save-checkpoint
+        template: save-model
+        when: "{{steps.train.outputs.parameters.status}} == 'success'"
+
+  - name: training-step
+    timeout: "{{workflow.parameters.time-limit}}"
+    inputs:
+      parameters:
+      - name: max-epochs
+    script:
+      image: python:3.9
+      imagePullPolicy: IfNotPresent
+      command: [python]
+      source: |
+        import time
+        import random
+        import os
+        import sys
+        from datetime import datetime
+        
+        # Create output directory if it doesn't exist
+        os.makedirs("/tmp/argo/outputs", exist_ok=True)
+        
+        def log(message):
+            print(message, flush=True)
+            sys.stdout.flush()
+        
+        try:
+            epochs = int("{{inputs.parameters.max-epochs}}")
+            start_time = time.time()
+            
+            log(f"[{datetime.now()}] Starting training with {epochs} epochs...")
+            
+            for epoch in range(epochs):
+                # Simulate training time (random between 1-3 seconds per epoch)
+                sleep_time = random.uniform(1, 3)
+                time.sleep(sleep_time)
+                
+                # Print progress every 10 epochs
+                if (epoch + 1) % 10 == 0:
+                    elapsed_time = time.time() - start_time
+                    log(f"[{datetime.now()}] Progress: {epoch + 1}/{epochs} epochs completed. "
+                        f"Elapsed time: {elapsed_time:.2f}s. "
+                        f"Last epoch took: {sleep_time:.2f}s")
+                else:
+                    log(f"Completed epoch {epoch}")
+            
+            total_time = time.time() - start_time
+            log(f"[{datetime.now()}] Training completed! Total time: {total_time:.2f}s")
+            
+            # Write success status
+            with open("/tmp/argo/outputs/status.txt", "w") as f:
+                f.write("success")
+        except Exception as e:
+            # Write error status
+            with open("/tmp/argo/outputs/status.txt", "w") as f:
+                f.write(f"error: {str(e)}")
+            raise
+    outputs:
+      parameters:
+      - name: status
+        valueFrom:
+          path: /tmp/argo/outputs/status.txt
+
+  - name: save-model
+    container:
+      image: busybox
+      imagePullPolicy: IfNotPresent
+      command: [sh, -c]
+      args: ["echo 'Saving model checkpoint'"] 

@@ -1,0 +1,96 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: resource-limits-
+spec:
+  entrypoint: train-model
+  arguments:
+    parameters:
+    - name: batch-size
+      value: "32"
+    - name: learning-rate
+      value: "0.001"
+
+  templates:
+  - name: train-model
+    steps:
+    - - name: train
+        template: training-step
+        arguments:
+          parameters:
+          - name: batch-size
+            value: "{{workflow.parameters.batch-size}}"
+          - name: learning-rate
+            value: "{{workflow.parameters.learning-rate}}"
+
+  - name: training-step
+    nodeSelector:
+      kubernetes.io/hostname: gpu-node-1  # 指定 GPU 节点
+    inputs:
+      parameters:
+      - name: batch-size
+      - name: learning-rate
+    script:
+      image: pytorch/pytorch:latest
+      imagePullPolicy: IfNotPresent
+      resources:
+        limits:
+          nvidia.com/gpu: 1  # 请求 1 个 GPU
+          memory: "8Gi"      # 内存限制
+          cpu: "4"           # CPU 限制
+        requests:
+          memory: "4Gi"      # 最小内存需求
+          cpu: "2"           # 最小 CPU 需求
+      command: [python]
+      source: |
+        import torch
+        import time
+        import os
+        import sys
+        from datetime import datetime
+        
+        def log(message):
+            print(message, flush=True)
+            sys.stdout.flush()
+        
+        try:
+            # 检查 GPU 是否可用
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            log(f"[{datetime.now()}] Using device: {device}")
+            
+            if torch.cuda.is_available():
+                log(f"[{datetime.now()}] GPU: {torch.cuda.get_device_name(0)}")
+                log(f"[{datetime.now()}] GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
+            
+            # 模拟训练过程
+            batch_size = int("{{inputs.parameters.batch-size}}")
+            learning_rate = float("{{inputs.parameters.learning-rate}}")
+            
+            log(f"[{datetime.now()}] Starting training with batch_size={batch_size}, lr={learning_rate}")
+            
+            # 模拟训练循环
+            for epoch in range(10):
+                # 模拟 GPU 内存使用
+                if torch.cuda.is_available():
+                    log(f"[{datetime.now()}] GPU Memory allocated: {torch.cuda.memory_allocated(0) / 1024**3:.2f} GB")
+                
+                time.sleep(2)  # 模拟训练时间
+                log(f"[{datetime.now()}] Completed epoch {epoch + 1}/10")
+            
+            log(f"[{datetime.now()}] Training completed successfully")
+            
+            # 写入状态
+            os.makedirs("/tmp/argo/outputs", exist_ok=True)
+            with open("/tmp/argo/outputs/status.txt", "w") as f:
+                f.write("success")
+        except Exception as e:
+            log(f"[{datetime.now()}] Error occurred: {str(e)}")
+            os.makedirs("/tmp/argo/outputs", exist_ok=True)
+            with open("/tmp/argo/outputs/status.txt", "w") as f:
+                f.write(f"error: {str(e)}")
+            raise
+    outputs:
+      parameters:
+      - name: status
+        valueFrom:
+          path: /tmp/argo/outputs/status.txt 

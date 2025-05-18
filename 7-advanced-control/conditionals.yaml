@@ -1,0 +1,61 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: conditional-example-
+spec:
+  entrypoint: main
+  arguments:
+    parameters:
+    - name: threshold
+      value: "0.85"
+
+  templates:
+  - name: main
+    steps:
+    - - name: generate-value
+        template: generate
+    - - name: check-value
+        template: check
+        arguments:
+          parameters:
+          - name: value
+            value: "{{steps.generate-value.outputs.result}}"
+          - name: threshold
+            value: "{{workflow.parameters.threshold}}"
+    - - name: success-step
+        template: success
+        when: "{{steps.check-value.outputs.result}} == 'true'"
+
+  - name: generate
+    script:
+      image: python:3.9
+      imagePullPolicy: IfNotPresent
+      command: [python]
+      source: |
+        import random
+        value = random.uniform(0.8, 0.9)
+        print(value)
+
+  - name: check
+    inputs:
+      parameters:
+      - name: value
+      - name: threshold
+    script:
+      image: python:3.9
+      imagePullPolicy: IfNotPresent
+      command: [python]
+      source: |
+        value = float("{{inputs.parameters.value}}")
+        threshold = float("{{inputs.parameters.threshold}}")
+        result = "true" if value >= threshold else "false"
+        print(result)
+
+  - name: success
+
+  
+    container:
+      image: busybox
+      imagePullPolicy: IfNotPresent
+      command: [sh, -c]
+      args: ["echo 'Value is above threshold!'"] 

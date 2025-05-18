@@ -1,0 +1,70 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: model-training-retry-
+spec:
+  entrypoint: train-model
+  arguments:
+    parameters:
+    - name: max-epochs
+      value: "10"
+
+  templates:
+  - name: train-model
+    steps:
+    - - name: train
+        template: training-step
+        arguments:
+          parameters:
+          - name: max-epochs
+            value: "{{workflow.parameters.max-epochs}}"
+
+  - name: training-step
+    retryStrategy:
+      limit: 3
+      retryPolicy: "OnFailure"
+      backoff:
+        duration: "10s"
+        factor: 2
+        maxDuration: "1m"
+    inputs:
+      parameters:
+      - name: max-epochs
+    script:
+      image: python:3.9
+      imagePullPolicy: IfNotPresent
+      command: [python]
+      source: |
+        import random
+        import sys
+        import os
+        
+        # Create output directory if it doesn't exist
+        os.makedirs("/tmp/argo/outputs", exist_ok=True)
+        
+        try:
+            # Simulate training process with potential failures
+            epochs = int("{{inputs.parameters.max-epochs}}")
+            for epoch in range(epochs):
+                # Simulate random failure (10% chance)
+                if random.random() < 0.1:
+                    print(f"Training failed at epoch {epoch}", file=sys.stderr)
+                    # Write failure status before exiting
+                    with open("/tmp/argo/outputs/status.txt", "w") as f:
+                        f.write(f"Training failed at epoch {epoch}")
+                    sys.exit(1)
+                print(f"Completed epoch {epoch}")
+            
+            # Write success status
+            with open("/tmp/argo/outputs/status.txt", "w") as f:
+                f.write("Training completed successfully")
+        except Exception as e:
+            # Write error status
+            with open("/tmp/argo/outputs/status.txt", "w") as f:
+                f.write(f"Error occurred: {str(e)}")
+            raise
+    outputs:
+      parameters:
+      - name: status
+        valueFrom:
+          path: /tmp/argo/outputs/status.txt 

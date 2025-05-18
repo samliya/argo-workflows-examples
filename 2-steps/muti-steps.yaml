@@ -36,10 +36,6 @@ spec:
         template: whalesay
         arguments:
           parameters: [{name: message, value: "Processing batch 3"}]
-      - name: batch3
-        template: whalesay
-        arguments:
-          parameters: [{name: message, value: "Processing batch 3"}]
       - name: batch4
         template: whalesay
         arguments:
@@ -50,6 +46,7 @@ spec:
       parameters:
       - name: message
     container:
-      image: docker/whalesay
-      command: [cowsay]
+      image: docker.io/library/busybox:latest
+      imagePullPolicy: IfNotPresent
+      command: [echo]
       args: ["{{inputs.parameters.message}}"]
